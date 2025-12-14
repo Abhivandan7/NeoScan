@@ -2,67 +2,51 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AI QR Code Security Scanner</title>
+  <title>Minimalistic AI QR Scanner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background:#111; color:#eee; padding:16px; text-align:center; }
-    video { width:100%; max-width:400px; border-radius:8px; margin-bottom:12px; }
-    canvas { display:none; }
-    #status { margin-top:12px; font-size:16px; min-height:30px; }
-    button { padding:8px 16px; margin:8px; border-radius:6px; border:none; background:#4f5dff; color:white; cursor:pointer; }
-    #alert { color:#ff5555; font-weight:bold; }
+    body { margin:0; background:#111; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; color:#eee; font-family: Arial, sans-serif; }
+    #scannerContainer { position: relative; border: 6px solid #444; border-radius:12px; overflow:hidden; width:90%; max-width:500px; }
+    video { width:100%; display:block; border-radius:6px; }
+    #alert { position:absolute; bottom:8px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.5); padding:6px 12px; border-radius:6px; font-size:18px; font-weight:bold; color:#eee; }
   </style>
 </head>
 <body>
-  <h2>🔒 AI QR Code Security Scanner</h2>
-  <video id="video" autoplay playsinline></video>
-  <canvas id="canvas"></canvas>
-  <div id="status">Initializing...</div>
-  <div id="alert"></div>
-  <button id="startBtn">Start Scanning</button>
-  <button id="stopBtn" style="background:#2a316d;">Stop Scanning</button>
+  <div id="scannerContainer">
+    <video id="video" autoplay playsinline></video>
+    <div id="alert">Scanning...</div>
+  </div>
 
 <script>
 let video = document.getElementById('video');
-let canvas = document.getElementById('canvas');
-let ctx = canvas.getContext('2d');
-let status = document.getElementById('status');
+let scannerContainer = document.getElementById('scannerContainer');
 let alertBox = document.getElementById('alert');
-let scanning = false;
-let stream = null;
+let canvas = document.createElement('canvas');
+let ctx = canvas.getContext('2d');
 
-// Dummy AI model for demonstration (replace with real model later)
-async function loadDummyModel() {
-  // Simple model: flag URL containing 'malicious' as unsafe
-  return {
-    predict: async (text) => {
-      return text.toLowerCase().includes('malicious') ? 1 : 0;
-    }
+// Basic URL safety checker
+function checkURLSafety(payload) {
+  if (!payload) return false;
+  payload = payload.toLowerCase();
+  const unsafeKeywords = ['http:', 'bit.ly', 'tinyurl', 'goo.gl'];
+  for (let key of unsafeKeywords) {
+    if (payload.includes(key)) return false;
   }
+  return true;
 }
-
-let model;
 
 async function startCamera() {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
     video.srcObject = stream;
     await video.play();
   } catch (err) {
-    status.textContent = 'Error accessing camera: ' + err.message;
+    alertBox.textContent = 'Error accessing camera: ' + err.message;
   }
 }
 
-function stopCamera() {
-  if (stream) stream.getTracks().forEach(track => track.stop());
-  stream = null;
-}
-
-async function scanFrame() {
-  if (!scanning) return;
-
+function scanFrame() {
   if (video.videoWidth === 0 || video.videoHeight === 0) {
     requestAnimationFrame(scanFrame);
     return;
@@ -75,39 +59,29 @@ async function scanFrame() {
 
   const code = jsQR(imageData.data, imageData.width, imageData.height);
   if (code) {
-    status.textContent = 'QR Code detected: ' + code.data;
-
-    // Run AI threat detection
-    const prediction = await model.predict(code.data);
-    if (prediction === 1) {
-      alertBox.textContent = '⚠️ Malicious QR code detected!';
+    const isSafe = checkURLSafety(code.data);
+    if (isSafe) {
+      scannerContainer.style.borderColor = '#00ff00';
+      alertBox.textContent = 'Safe';
+      alertBox.style.color = '#00ff00';
     } else {
-      alertBox.textContent = '';
+      scannerContainer.style.borderColor = '#ff0000';
+      alertBox.textContent = 'Not Safe';
+      alertBox.style.color = '#ff5555';
     }
   } else {
-    status.textContent = 'Scanning...';
-    alertBox.textContent = '';
+    scannerContainer.style.borderColor = '#444';
+    alertBox.textContent = 'Scanning...';
+    alertBox.style.color = '#eee';
   }
 
   requestAnimationFrame(scanFrame);
 }
 
-document.getElementById('startBtn').onclick = async () => {
-  scanning = true;
-  alertBox.textContent = '';
-  status.textContent = 'Loading model...';
-  model = await loadDummyModel();
+(async () => {
   await startCamera();
-  status.textContent = 'Scanning for QR codes...';
   scanFrame();
-}
-
-document.getElementById('stopBtn').onclick = () => {
-  scanning = false;
-  stopCamera();
-  status.textContent = 'Scanner stopped.';
-  alertBox.textContent = '';
-}
+})();
 </script>
 </body>
 </html>
