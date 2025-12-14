@@ -1,126 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Realtime Voice Translator – WORKING</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0b1020; color:#e6e8ef; margin:0; }
-    header { padding:16px 20px; border-bottom:1px solid #1f2440; }
-    main { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:16px; }
-    .card { background:#12183a; border-radius:14px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
-    h1 { font-size:18px; margin:0; }
-    h2 { font-size:14px; margin:0 0 8px; color:#b7bdf8; }
-    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    button { background:#4f5dff; color:#fff; border:none; border-radius:10px; padding:10px 14px; cursor:pointer; }
-    button.secondary { background:#2a316d; }
-    select { background:#0e1433; color:#e6e8ef; border:1px solid #232a63; border-radius:10px; padding:8px; }
-    .stream { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height:1.6; word-wrap:break-word; }
-    footer { padding:12px 16px; border-top:1px solid #1f2440; font-size:12px; color:#9aa0ff; }
-  </style>
+  <meta charset="utf-8">
+  <title>Speech Test</title>
 </head>
 <body>
-  <header>
-    <h1>🎙️ Realtime Cascading Voice Translator (Guaranteed Visible)</h1>
-  </header>
 
-  <main>
-    <section class="card">
-      <h2>Live Speech (Realtime)</h2>
-      <div class="row" style="margin-bottom:8px">
-        <select id="srcLang">
-          <option value="en-US">English</option>
-          <option value="hi-IN">Hindi</option>
-          <option value="fr-FR">French</option>
-          <option value="es-ES">Spanish</option>
-        </select>
-        <button id="startBtn">Start</button>
-        <button id="stopBtn" class="secondary">Stop</button>
-      </div>
-      <div id="liveWords" class="stream"></div>
-    </section>
+<h2>🎙 Speech Recognition Test</h2>
+<button id="start">Start</button>
+<button id="stop">Stop</button>
 
-    <section class="card">
-      <h2>Word-by-Word Translation</h2>
-      <select id="tgtLang">
-        <option value="es">Spanish</option>
-        <option value="fr">French</option>
-        <option value="hi">Hindi</option>
-      </select>
-      <div id="translatedWords" class="stream"></div>
-    </section>
-  </main>
-
-  <footer>
-    ✔️ Chrome desktop only · Uses Web Speech API · No backend · GitHub Pages ready
-  </footer>
+<pre id="output"></pre>
 
 <script>
-// ===== SPEECH RECOGNITION =====
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+
 if (!SpeechRecognition) {
-  alert('Use Chrome desktop. SpeechRecognition not available.');
+  alert("SpeechRecognition NOT supported. Use Chrome.");
 }
 
 const recognition = new SpeechRecognition();
-recognition.lang = 'en-US';
 recognition.continuous = true;
 recognition.interimResults = true;
+recognition.lang = "en-US";
 
-const liveWords = document.getElementById('liveWords');
-const translatedWords = document.getElementById('translatedWords');
+const output = document.getElementById("output");
 
-let processedText = '';
-
-recognition.onresult = async (event) => {
-  let full = '';
+recognition.onresult = (event) => {
+  let text = "";
   for (let i = 0; i < event.results.length; i++) {
-    full += event.results[i][0].transcript;
+    text += event.results[i][0].transcript;
   }
-
-  // SHOW LIVE TEXT ALWAYS (this fixes your bug)
-  liveWords.textContent = full;
-
-  const delta = full.slice(processedText.length).trim();
-  processedText = full;
-
-  if (!delta) return;
-
-  const words = delta.split(/\s+/);
-  for (const w of words) {
-    const t = await translateWord(w);
-    translatedWords.textContent += t + ' ';
-  }
+  output.textContent = text;
 };
 
-recognition.onerror = (e) => console.error('Speech error:', e);
-
-// ===== TRANSLATION (FREE API) =====
-async function translateWord(word) {
-  const target = document.getElementById('tgtLang').value;
-  try {
-    const res = await fetch('https://libretranslate.de/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q: word, source: 'auto', target })
-    });
-    const data = await res.json();
-    return data.translatedText || word;
-  } catch {
-    return word;
-  }
-}
-
-// ===== CONTROLS =====
-document.getElementById('startBtn').onclick = () => {
-  recognition.lang = document.getElementById('srcLang').value;
-  processedText = '';
-  liveWords.textContent = '';
-  translatedWords.textContent = '';
-  recognition.start();
+recognition.onerror = (e) => {
+  console.error("ERROR:", e);
+  output.textContent = "Error: " + e.error;
 };
 
-document.getElementById('stopBtn').onclick = () => recognition.stop();
+document.getElementById("start").onclick = () => recognition.start();
+document.getElementById("stop").onclick = () => recognition.stop();
 </script>
+
 </body>
 </html>
