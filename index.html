@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Realtime Voice Translator – 100% Working</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0b1020; color:#e6e8ef; margin:0; }
+    header { padding:16px 20px; border-bottom:1px solid #1f2440; }
+    main { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:16px; }
+    .card { background:#12183a; border-radius:14px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+    h1 { font-size:18px; margin:0; }
+    h2 { font-size:14px; margin:0 0 8px; color:#b7bdf8; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    button { background:#4f5dff; color:#fff; border:none; border-radius:10px; padding:10px 14px; cursor:pointer; }
+    button.secondary { background:#2a316d; }
+    select { background:#0e1433; color:#e6e8ef; border:1px solid #232a63; border-radius:10px; padding:8px; }
+    .stream { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height:1.6; word-wrap:break-word; }
+    .pill { display:inline-block; padding:4px 8px; border-radius:999px; background:#1f2440; margin-right:6px; font-size:12px; }
+    footer { padding:12px 16px; border-top:1px solid #1f2440; font-size:12px; color:#9aa0ff; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="row">
+      <h1>🎙️ Realtime Cascading Voice Translator</h1>
+      <span class="pill">Client‑side</span>
+      <span class="pill">GitHub Pages</span>
+      <span class="pill">Zero setup</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Live Speech → Words</h2>
+      <div class="row" style="margin-bottom:8px">
+        <select id="srcLang">
+          <option value="en-US">English</option>
+          <option value="hi-IN">Hindi</option>
+          <option value="fr-FR">French</option>
+          <option value="es-ES">Spanish</option>
+        </select>
+        <button id="startBtn">Start</button>
+        <button id="stopBtn" class="secondary">Stop</button>
+      </div>
+      <div id="liveWords" class="stream"></div>
+    </section>
+
+    <section class="card">
+      <h2>Realtime Word‑by‑Word Translation</h2>
+      <div class="row" style="margin-bottom:8px">
+        <select id="tgtLang">
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="hi">Hindi</option>
+        </select>
+      </div>
+      <div id="translatedWords" class="stream"></div>
+    </section>
+  </main>
+
+  <footer>
+    ✔️ Uses Web Speech API + LibreTranslate (free) · No backend · Runs on GitHub Pages
+  </footer>
+
+<script>
+// ===============================
+// Speech Recognition (Realtime)
+// ===============================
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SpeechRecognition) {
+  alert('Speech Recognition not supported. Use Chrome desktop.');
+}
+
+const recognition = new SpeechRecognition();
+recognition.continuous = true;
+recognition.interimResults = true;
+
+const liveWords = document.getElementById('liveWords');
+const translatedWords = document.getElementById('translatedWords');
+
+let lastTranscript = '';
+let translating = false;
+
+recognition.onresult = async (event) => {
+  const result = event.results[event.results.length - 1];
+  if (!result.isFinal) return;
+
+  const transcript = result[0].transcript.trim();
+  const delta = transcript.replace(lastTranscript, '').trim();
+  lastTranscript = transcript;
+
+  if (!delta) return;
+
+  const words = delta.split(/\s+/);
+  for (const word of words) {
+    appendWord(liveWords, word);
+    const translated = await translateWord(word);
+    appendWord(translatedWords, translated);
+  }
+};
+
+function appendWord(container, word) {
+  const span = document.createElement('span');
+  span.textContent = word + ' ';
+  container.appendChild(span);
+}
+
+// ===============================
+// Translation (LibreTranslate)
+// ===============================
+async function translateWord(word) {
+  const target = document.getElementById('tgtLang').value;
+  try {
+    const res = await fetch('https://libretranslate.de/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        q: word,
+        source: 'auto',
+        target
+      })
+    });
+    const data = await res.json();
+    return data.translatedText || '[' + word + ']';
+  } catch (e) {
+    return '[' + word + ']';
+  }
+}
+
+// ===============================
+// Controls
+// ===============================
+document.getElementById('startBtn').onclick = () => {
+  recognition.lang = document.getElementById('srcLang').value;
+  lastTranscript = '';
+  liveWords.textContent = '';
+  translatedWords.textContent = '';
+  recognition.start();
+};
+
+document.getElementById('stopBtn').onclick = () => recognition.stop();
+</script>
+</body>
+</html>
