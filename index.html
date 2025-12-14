@@ -1,116 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Realtime Voice Translator – Mobile Friendly</title>
+  <meta charset="UTF-8">
+  <title>Web OCR Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0b1020; color:#e6e8ef; margin:0; padding:16px; }
-    header { margin-bottom:16px; }
-    h1 { font-size:20px; }
-    select, button { padding:8px 12px; margin-right:8px; border-radius:8px; border:none; }
-    button { background:#4f5dff; color:#fff; }
-    button.secondary { background:#2a316d; }
-    .stream { margin-top:8px; font-family: monospace; line-height:1.6; word-wrap:break-word; }
-    .card { background:#12183a; border-radius:12px; padding:12px; margin-bottom:16px; }
-    footer { margin-top:16px; font-size:12px; color:#9aa0ff; }
+    body { font-family: Arial, sans-serif; background:#111; color:#eee; padding:20px; }
+    input, button { margin: 8px 0; padding:8px; border-radius:6px; border:none; }
+    button { background:#4f5dff; color:white; cursor:pointer; }
+    img { max-width:100%; margin-top:12px; border-radius:8px; }
+    #output { margin-top:12px; white-space:pre-wrap; background:#222; padding:12px; border-radius:8px; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>🎙️ Realtime Cascading Voice Translator</h1>
-  </header>
-
-  <div class="card">
-    <h2>Live Speech → Words</h2>
-    <select id="srcLang">
-      <option value="en-US">English</option>
-      <option value="hi-IN">Hindi</option>
-      <option value="fr-FR">French</option>
-      <option value="es-ES">Spanish</option>
-    </select>
-    <button id="startBtn">Start</button>
-    <button id="stopBtn" class="secondary">Stop</button>
-    <div id="liveWords" class="stream"></div>
+  <h2>🖼️ Web OCR Demo (Tesseract.js)</h2>
+  
+  <input type="file" id="imageInput" accept="image/*">
+  <button id="startBtn">Start OCR</button>
+  
+  <div>
+    <img id="preview" src="" alt="Preview" />
   </div>
-
-  <div class="card">
-    <h2>Realtime Word-by-Word Translation</h2>
-    <select id="tgtLang">
-      <option value="es">Spanish</option>
-      <option value="fr">French</option>
-      <option value="hi">Hindi</option>
-    </select>
-    <div id="translatedWords" class="stream"></div>
-  </div>
-
-  <footer>
-    ✔️ Works on mobile & desktop Chrome · Uses Web Speech API · LibreTranslate API (free)
-  </footer>
-
-<script>
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (!SpeechRecognition) {
-  alert('SpeechRecognition API not supported. Use Chrome mobile or desktop.');
-}
-
-const recognition = new SpeechRecognition();
-recognition.continuous = true;
-recognition.interimResults = true;
-
-const liveWords = document.getElementById('liveWords');
-const translatedWords = document.getElementById('translatedWords');
-let processedText = '';
-
-recognition.onresult = async (event) => {
-  let fullTranscript = '';
-  for (let i = 0; i < event.results.length; i++) {
-    fullTranscript += event.results[i][0].transcript;
-  }
-
-  // Show live speech
-  liveWords.textContent = fullTranscript;
-
-  const delta = fullTranscript.slice(processedText.length).trim();
-  processedText = fullTranscript;
-
-  if (!delta) return;
-
-  const words = delta.split(/\s+/);
-  for (const word of words) {
-    try {
-      const t = await translateWord(word);
-      translatedWords.textContent += t + ' ';
-    } catch(e) {
-      translatedWords.textContent += '[' + word + '] ';
-    }
-  }
-};
-
-recognition.onerror = (e) => {
-  console.error('SpeechRecognition error:', e.error);
-};
-
-async function translateWord(word) {
-  const target = document.getElementById('tgtLang').value;
-  const res = await fetch('https://libretranslate.de/translate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ q: word, source: 'auto', target })
-  });
-  const data = await res.json();
-  return data.translatedText || word;
-}
-
-document.getElementById('startBtn').onclick = () => {
-  recognition.lang = document.getElementById('srcLang').value;
-  processedText = '';
-  liveWords.textContent = '';
-  translatedWords.textContent = '';
-  recognition.start();
-};
-
-document.getElementById('stopBtn').onclick = () => recognition.stop();
-</script>
+  
+  <div id="output">OCR output will appear here...</div>
+  
+  <script>
+    const imageInput = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const output = document.getElementById('output');
+    const startBtn = document.getElementById('startBtn');
+    
+    let imageFile = null;
+    
+    imageInput.addEventListener('change', (e) => {
+      if(e.target.files && e.target.files[0]){
+        imageFile = e.target.files[0];
+        preview.src = URL.createObjectURL(imageFile);
+        output.textContent = 'Ready to run OCR...';
+      }
+    });
+    
+    startBtn.addEventListener('click', () => {
+      if(!imageFile){
+        alert('Please select an image first!');
+        return;
+      }
+      output.textContent = '🕒 Processing...';
+      
+      Tesseract.recognize(
+        imageFile,
+        'eng', // you can add other languages, e.g., 'eng+hin'
+        { logger: m => output.textContent = 'Progress: ' + Math.round(m.progress*100) + '%\n' + output.textContent }
+      ).then(({ data: { text } }) => {
+        output.textContent = '✅ OCR Result:\n' + text;
+      }).catch(err => {
+        output.textContent = '❌ Error: ' + err.message;
+      });
+    });
+  </script>
 </body>
 </html>
