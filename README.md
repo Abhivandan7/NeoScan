@@ -69,8 +69,8 @@ NeoScan is released under the **Apache 2.0 License**. You are free to use, modif
 
 ## Screenshots
 
-![NeoScan_Good_QR Screenshot](uploads/Screenshot from 2025-12-14 20-12-05.png)
-![NeoScan Bad_QR Screenshot]("uploads/Screenshot from 2025-12-14 20-14-35.png")
+![NeoScan Good QR](uploads/Screenshot_from_2025-12-14_20-12-05.png)
+![NeoScan Bad QR](uploads/Screenshot_from_2025-12-14_20-14-35.png)
 
 ---
 
