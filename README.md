@@ -69,8 +69,10 @@ NeoScan is released under the **Apache 2.0 License**. You are free to use, modif
 
 ## Screenshots
 
-![NeoScan Good QR](uploads/Good_QR.png)
-![NeoScan Bad QR](uploads/Bad_QR.png)
+<div style="display:flex; gap:10px;">
+  <img src="uploads/Good_QR.png" alt="NeoScan Good QR" style="width:45%; height:auto; border-radius:8px;">
+  <img src="uploads/Bad_QR.png" alt="NeoScan Bad QR" style="width:45%; height:auto; border-radius:8px;">
+</div>
 
 ---
 
