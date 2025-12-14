@@ -2,79 +2,97 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Realtime Camera OCR</title>
+  <title>Realtime Camera OCR – Fixed</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; background:#111; color:#eee; padding:16px; }
     video { width:100%; max-width:400px; border-radius:8px; }
     #output { margin-top:12px; background:#222; padding:12px; border-radius:8px; white-space:pre-wrap; min-height:80px; }
-    button { margin-top:8px; padding:8px 12px; border:none; border-radius:6px; background:#4f5dff; color:white; cursor:pointer; }
+    button { margin-top:8px; padding:8px 12px; border:none; border-radius:6px; background:#4f5dff; color:white; cursor:pointer; margin-right:8px; }
   </style>
 </head>
 <body>
   <h2>📷 Realtime Camera OCR</h2>
   <video id="video" autoplay playsinline></video>
-  <button id="startBtn">Start OCR</button>
-  <button id="stopBtn" style="background:#2a316d;">Stop OCR</button>
+  <div>
+    <button id="startBtn">Start OCR</button>
+    <button id="stopBtn" style="background:#2a316d;">Stop OCR</button>
+  </div>
   <div id="output">OCR text will appear here...</div>
 
-  <script>
-    const video = document.getElementById('video');
-    const output = document.getElementById('output');
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
+<script>
+  const video = document.getElementById('video');
+  const output = document.getElementById('output');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
 
-    let ocrActive = false;
-    let stream = null;
+  let ocrActive = false;
+  let stream = null;
 
-    async function startCamera() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-        video.srcObject = stream;
-      } catch (err) {
-        alert('Error accessing camera: ' + err.message);
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      video.srcObject = stream;
+      await video.play();
+    } catch (err) {
+      alert('Error accessing camera: ' + err.message);
+    }
+  }
+
+  function stopCamera() {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+  }
+
+  async function runOCR() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const worker = Tesseract.createWorker({
+      logger: m => output.textContent = 'Progress: ' + Math.round(m.progress * 100) + '%'
+    });
+
+    await worker.load();
+    await worker.loadLanguage('eng');
+    await worker.initialize('eng');
+
+    while (ocrActive) {
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        await new Promise(r => setTimeout(r, 200));
+        continue;
       }
+
+      canvas.width = video.videoWidth * 2;  // upscale for better accuracy
+      canvas.height = video.videoHeight * 2;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const { data: { text } } = await worker.recognize(canvas);
+      if (text.trim()) {
+        output.textContent = text;
+      }
+
+      await new Promise(r => setTimeout(r, 1000)); // 1s delay between OCR frames
     }
 
-    function stopCamera() {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    }
+    await worker.terminate();
+  }
 
-    async function runOCR() {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const worker = Tesseract.createWorker({
-        logger: m => output.textContent = 'Progress: ' + Math.round(m.progress * 100) + '%'
-      });
-      await worker.load();
-      await worker.loadLanguage('eng');
-      await worker.initialize('eng');
+  startBtn.onclick = async () => {
+    if (ocrActive) return;
+    ocrActive = true;
+    output.textContent = 'Starting OCR...';
+    await startCamera();
+    runOCR();
+  };
 
-      while (ocrActive) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const { data: { text } } = await worker.recognize(canvas);
-        if (text.trim()) output.textContent = text;
-        await new Promise(r => setTimeout(r, 1000)); // 1 second delay between OCR frames
-      }
-      await worker.terminate();
-    }
-
-    startBtn.onclick = async () => {
-      ocrActive = true;
-      await startCamera();
-      runOCR();
-    };
-
-    stopBtn.onclick = () => {
-      ocrActive = false;
-      stopCamera();
-      output.textContent = 'OCR stopped.';
-    };
-  </script>
+  stopBtn.onclick = () => {
+    ocrActive = false;
+    stopCamera();
+    output.textContent = 'OCR stopped.';
+  };
+</script>
 </body>
 </html>
