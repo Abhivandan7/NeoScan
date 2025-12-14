@@ -64,82 +64,79 @@
   </footer>
 
 <script>
-// ===============================
-// Speech Recognition (Realtime)
-// ===============================
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (!SpeechRecognition) {
-  alert('Speech Recognition not supported. Use Chrome desktop.');
+  alert("Use Chrome desktop. SpeechRecognition not supported.");
 }
 
 const recognition = new SpeechRecognition();
 recognition.continuous = true;
 recognition.interimResults = true;
 
-const liveWords = document.getElementById('liveWords');
-const translatedWords = document.getElementById('translatedWords');
+const liveWords = document.getElementById("liveWords");
+const translatedWords = document.getElementById("translatedWords");
 
-let lastTranscript = '';
-let translating = false;
+let emittedWordCount = 0;
 
+// ---- Speech Handler ----
 recognition.onresult = async (event) => {
-  const result = event.results[event.results.length - 1];
-  if (!result.isFinal) return;
+  let fullText = "";
 
-  const transcript = result[0].transcript.trim();
-  const delta = transcript.replace(lastTranscript, '').trim();
-  lastTranscript = transcript;
+  for (let i = 0; i < event.results.length; i++) {
+    fullText += event.results[i][0].transcript;
+  }
 
-  if (!delta) return;
+  const words = fullText.trim().split(/\s+/);
 
-  const words = delta.split(/\s+/);
-  for (const word of words) {
-    appendWord(liveWords, word);
-    const translated = await translateWord(word);
-    appendWord(translatedWords, translated);
+  // Emit only NEW words
+  while (emittedWordCount < words.length) {
+    const word = words[emittedWordCount];
+    append(liveWords, word);
+
+    // translate word asynchronously
+    translateWord(word).then(t => append(translatedWords, t));
+
+    emittedWordCount++;
   }
 };
 
-function appendWord(container, word) {
-  const span = document.createElement('span');
-  span.textContent = word + ' ';
+function append(container, word) {
+  const span = document.createElement("span");
+  span.textContent = word + " ";
   container.appendChild(span);
+  container.scrollTop = container.scrollHeight;
 }
 
-// ===============================
-// Translation (LibreTranslate)
-// ===============================
+// ---- Translation ----
 async function translateWord(word) {
-  const target = document.getElementById('tgtLang').value;
+  const target = document.getElementById("tgtLang").value;
+
   try {
-    const res = await fetch('https://libretranslate.de/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("https://libretranslate.de/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         q: word,
-        source: 'auto',
+        source: "auto",
         target
       })
     });
     const data = await res.json();
-    return data.translatedText || '[' + word + ']';
-  } catch (e) {
-    return '[' + word + ']';
+    return data.translatedText || `[${word}]`;
+  } catch {
+    return `[${word}]`;
   }
 }
 
-// ===============================
-// Controls
-// ===============================
-document.getElementById('startBtn').onclick = () => {
-  recognition.lang = document.getElementById('srcLang').value;
-  lastTranscript = '';
-  liveWords.textContent = '';
-  translatedWords.textContent = '';
+// ---- Controls ----
+document.getElementById("startBtn").onclick = () => {
+  recognition.lang = document.getElementById("srcLang").value;
+  emittedWordCount = 0;
+  liveWords.textContent = "";
+  translatedWords.textContent = "";
   recognition.start();
 };
 
-document.getElementById('stopBtn').onclick = () => recognition.stop();
+document.getElementById("stopBtn").onclick = () => recognition.stop();
 </script>
-</body>
-</html>
+
